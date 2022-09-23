@@ -1,0 +1,90 @@
+#start-spark.sh
+#!/bin/bash
+. "/opt/spark/bin/load-spark-env.sh"
+# When the spark work_load is master run class org.apache.spark.deploy.master.Master
+if [ "$SPARK_WORKLOAD" == "master" ];
+then
+
+export SPARK_MASTER_HOST=`hostname`
+
+cd /opt/spark/bin && ./spark-class org.apache.spark.deploy.master.Master --ip $SPARK_MASTER_HOST --port $SPARK_MASTER_PORT --webui-port $SPARK_MASTER_WEBUI_PORT >> $SPARK_MASTER_LOG
+
+elif [ "$SPARK_WORKLOAD" == "worker" ];
+then
+# When the spark work_load is worker run class org.apache.spark.deploy.master.Worker
+cd /opt/spark/bin && ./spark-class org.apache.spark.deploy.worker.Worker --webui-port $SPARK_WORKER_WEBUI_PORT $SPARK_MASTER >> $SPARK_WORKER_LOG
+
+elif [ "$SPARK_WORKLOAD" == "submit" ];
+then
+    echo "SPARK SUBMIT"
+else
+    echo "Undefined Workload Type $SPARK_WORKLOAD, must specify: master, worker, submit"
+fi
+horus@horus-mlui-Mac-Studio spark-build % cat docker-compose.yml
+version: "3.3"
+services:
+  spark-master:
+    image: cluster-apahce-spark-m1:3.3.0
+    hostname: spark-master
+    networks:
+      - default_net
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+       - ./apps:/opt/spark-apps
+       - ./data:/opt/spark-data
+    environment:
+      - SPARK_WORKLOAD=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+  spark-worker-a:
+    image: cluster-apahce-spark-m1:3.3.0
+    networks:
+      - default_net
+    ports:
+      - "9091:8080"
+      - "17000:7000"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=6
+      - SPARK_WORKER_MEMORY=16G
+      - SPARK_DRIVER_MEMORY=8G
+      - SPARK_EXECUTOR_MEMORY=3G
+      - SPARK_WORKLOAD=worker
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+       - ./apps:/opt/spark-apps
+       - ./data:/opt/spark-data
+  spark-worker-b:
+    image: cluster-apahce-spark-m1:3.3.0
+    networks:
+      - default_net
+    ports:
+      - "9092:8080"
+      - "17001:7000"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=6
+      - SPARK_WORKER_MEMORY=16G
+      - SPARK_DRIVER_MEMORY=8G
+      - SPARK_EXECUTOR_MEMORY=3G
+      - SPARK_WORKLOAD=worker
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+        - ./apps:/opt/spark-apps
+        - ./data:/opt/spark-data
+networks:
+    default_net:
